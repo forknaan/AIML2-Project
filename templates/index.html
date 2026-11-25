@@ -1,0 +1,2697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mini-Among Us 2D — Real-Time LAN &amp; AI Trajectory Sandbox</title>
+  <style>
+    :root {
+      --bg: #05080f;
+      --panel: #101827;
+      --panel-2: #172236;
+      --border: #283750;
+      --text: #e6edf7;
+      --muted: #93a4bf;
+      --cyan: #22d3ee;
+      --red: #f87171;
+      --amber: #facc15;
+      --purple: #a855f7;
+      --green: #34d399;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at top, #0e182c 0%, var(--bg) 65%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1340px;
+      margin: 0 auto;
+      padding: 12px;
+    }
+
+    .hidden { display: none !important; }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.48);
+    }
+
+    h2, h3 { margin: 0 0 8px 0; font-weight: 700; }
+    .muted { color: var(--muted); font-size: 0.88rem; }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, transform 0.06s ease;
+      user-select: none;
+    }
+
+    .btn:hover:not(:disabled) { background: #22304a; border-color: #4b6591; }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.42; cursor: not-allowed; }
+    .btn-primary { background: #0e7490; border-color: #22d3ee; color: #ecfeff; }
+    .btn-primary:hover:not(:disabled) { background: #0891b2; }
+    .btn-danger { background: #7f1d1d; border-color: #f87171; color: #fef2f2; }
+    .btn-danger:hover:not(:disabled) { background: #991b1b; }
+    .btn-kill-ready {
+      background: #dc2626 !important;
+      border-color: #fca5a5 !important;
+      box-shadow: 0 0 18px rgba(239, 68, 68, 0.85);
+      animation: killPulse 0.9s infinite alternate;
+    }
+    @keyframes killPulse {
+      from { box-shadow: 0 0 10px rgba(239, 68, 68, 0.55); }
+      to { box-shadow: 0 0 22px rgba(239, 68, 68, 0.95); }
+    }
+    .btn-warning { background: #78350f; border-color: #facc15; color: #fefce8; }
+    .btn-warning:hover:not(:disabled) { background: #92400e; }
+    .btn-purple { background: #581c87; border-color: #a855f7; color: #faf5ff; }
+    .btn-purple:hover:not(:disabled) { background: #6b21a8; }
+    .btn-sabotage { background: #7c2d12; border-color: #fb923c; color: #fff7ed; }
+    .btn-sabotage:hover:not(:disabled) { background: #9a3412; }
+    .btn-success { background: #065f46; border-color: #34d399; color: #ecfdf5; }
+    .btn-sm { padding: 6px 10px; font-size: 0.82rem; }
+
+    .input, select {
+      background: #0b121f;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .input:focus, select:focus { border-color: var(--cyan); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .badge-crew { background: rgba(34, 211, 238, 0.14); color: var(--cyan); border-color: rgba(34, 211, 238, 0.45); }
+    .badge-imp { background: rgba(248, 113, 113, 0.14); color: var(--red); border-color: rgba(248, 113, 113, 0.45); }
+    .badge-bot { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border-color: #475569; }
+    .badge-alive { background: rgba(52, 211, 153, 0.14); color: var(--green); border-color: rgba(52, 211, 153, 0.4); }
+    .badge-dead { background: rgba(248, 113, 113, 0.14); color: var(--red); border-color: rgba(248, 113, 113, 0.4); text-decoration: line-through; }
+
+    /* Lobby */
+    .lobby-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .lan-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #0c1424;
+      border: 1px solid #334155;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.86rem;
+      color: var(--cyan);
+    }
+
+    .slots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .slot-card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slot-card.mine { border-color: var(--cyan); box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35); }
+    .slot-top { display: flex; justify-content: space-between; align-items: center; }
+
+    .lobby-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .data-bar {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.88rem;
+    }
+
+    /* Status Bar & Sabotage Alert */
+    .status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding: 10px 14px;
+    }
+
+    .status-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .task-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 190px; }
+    .task-track {
+      flex: 1;
+      height: 11px;
+      background: #0b121f;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .task-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #34d399);
+      width: 0%;
+      transition: width 0.2s ease;
+    }
+
+    .sabotage-alert {
+      margin-bottom: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(185, 28, 28, 0.28);
+      border: 2px solid #ef4444;
+      color: #fee2e2;
+      font-weight: 800;
+      text-align: center;
+      letter-spacing: 0.04em;
+      animation: alertPulse 0.85s infinite alternate;
+    }
+
+    @keyframes alertPulse {
+      from { background: rgba(185, 28, 28, 0.22); border-color: #ef4444; }
+      to { background: rgba(220, 38, 38, 0.45); border-color: #fca5a5; }
+    }
+
+    /* Game Layout */
+    .game-grid {
+      display: grid;
+      grid-template-columns: 1.85fr 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) { .game-grid { grid-template-columns: 1fr; } }
+
+    .canvas-card { padding: 10px; position: relative; overflow: hidden; }
+
+    canvas#world-canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: #05080f;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      touch-action: none;
+    }
+
+    /* Red flash overlay on kill */
+    .kill-flash {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle, rgba(220, 38, 38, 0.15) 20%, rgba(185, 28, 28, 0.75) 100%);
+      z-index: 90;
+      animation: flashFade 0.45s ease-out forwards;
+    }
+    @keyframes flashFade {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    /* Interactive Mini-Game Popup */
+    .minigame-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 7, 14, 0.68);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 60;
+      padding: 16px;
+    }
+
+    .minigame-card {
+      width: 100%;
+      max-width: 440px;
+      background: #131d2f;
+      border: 2px solid #475569;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75);
+    }
+
+    .minigame-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .keypad-display {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 0.25em;
+      text-align: center;
+      padding: 10px;
+      background: #070d17;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #34d399;
+      margin-bottom: 10px;
+    }
+
+    .keypad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .seq-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .seq-btn {
+      padding: 16px 8px;
+      font-size: 1.25rem;
+      font-weight: 800;
+    }
+
+    .seq-btn.done {
+      background: #065f46;
+      border-color: #34d399;
+      color: #a7f3d0;
+    }
+
+    .wires-wrap {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: stretch;
+      gap: 24px;
+      padding: 12px 6px;
+      background: #090f1a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      min-height: 180px;
+    }
+
+    .wires-col {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      gap: 12px;
+      z-index: 2;
+    }
+
+    .wire-node {
+      width: 82px;
+      height: 36px;
+      border-radius: 8px;
+      border: 2px solid #fff;
+      font-weight: 800;
+      font-size: 0.82rem;
+      color: #0b0f17;
+      cursor: pointer;
+    }
+
+    .wire-node.selected {
+      outline: 3px solid #fff;
+      transform: scale(1.06);
+    }
+
+    .breaker-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .breaker-switch {
+      padding: 20px 10px;
+      font-weight: 800;
+      border-radius: 10px;
+      border: 2px solid #ef4444;
+      background: #450a0a;
+      color: #fecaca;
+      cursor: pointer;
+    }
+
+    .breaker-switch.on {
+      border-color: #34d399;
+      background: #065f46;
+      color: #a7f3d0;
+    }
+
+    /* Dramatic Full-Screen Stingers (Meeting / Ejection) */
+    .dramatic-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle, rgba(15, 23, 42, 0.94) 0%, rgba(2, 4, 9, 0.98) 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      z-index: 80;
+    }
+
+    .dramatic-title {
+      font-size: clamp(1.8rem, 5vw, 3.2rem);
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    }
+
+    .dramatic-sub {
+      font-size: clamp(1rem, 2.5vw, 1.35rem);
+      color: #cbd5e1;
+      max-width: 620px;
+    }
+
+    .side-stack { display: flex; flex-direction: column; gap: 12px; }
+    .hud-actions { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }
+
+    .task-progress-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(250, 204, 21, 0.12);
+      border: 1px solid rgba(250, 204, 21, 0.45);
+    }
+
+    .sightings-list {
+      list-style: none;
+      margin: 8px 0 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .sighting-item {
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: #0c1320;
+      border: 1px solid var(--border);
+      font-size: 0.84rem;
+      line-height: 1.3;
+    }
+
+    .sighting-item.alert {
+      border-color: rgba(248, 113, 113, 0.65);
+      background: rgba(127, 29, 29, 0.3);
+      color: #fecaca;
+      font-weight: 600;
+    }
+
+    .task-list {
+      list-style: none;
+      margin: 6px 0 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 0.86rem;
+    }
+
+    .touch-dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 50px);
+      grid-template-rows: repeat(2, 44px);
+      gap: 6px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    .touch-dpad button {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 1rem;
+      touch-action: none;
+      user-select: none;
+    }
+    .touch-dpad button.active { background: #0e7490; border-color: var(--cyan); }
+
+    /* Meeting Phase */
+    .meeting-grid {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .meeting-grid { grid-template-columns: 1fr; } }
+
+    .meeting-banner {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(248, 113, 113, 0.14);
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      margin-bottom: 10px;
+    }
+
+    .chat-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 130px;
+      max-height: 260px;
+      overflow-y: auto;
+      padding: 10px;
+      background: #090e18;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+
+    .chat-msg {
+      padding: 8px 10px;
+      background: var(--panel-2);
+      border-radius: 8px;
+      border-left: 3px solid var(--cyan);
+      font-size: 0.92rem;
+    }
+
+    .chat-builder {
+      background: #0d1626;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .builder-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; align-items: center; }
+    .timer-track { height: 8px; background: #090e18; border-radius: 999px; overflow: hidden; margin-top: 8px; }
+    .timer-fill { height: 100%; background: var(--cyan); width: 100%; transition: width 0.2s linear; }
+
+    .vote-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .waiting-banner {
+      margin-top: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: rgba(96, 165, 250, 0.12);
+      border: 1px solid rgba(96, 165, 250, 0.35);
+      color: #bfdbfe;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .error-toast {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(248, 113, 113, 0.16);
+      border: 1px solid rgba(248, 113, 113, 0.5);
+      color: #fecaca;
+      font-size: 0.88rem;
+    }
+
+    .summary-toast {
+      margin-bottom: 10px;
+      padding: 9px 14px;
+      border-radius: 10px;
+      background: rgba(250, 204, 21, 0.1);
+      border: 1px solid rgba(250, 204, 21, 0.38);
+      color: #fef08a;
+      font-size: 0.88rem;
+    }
+
+    .gameover-box { text-align: center; padding: 26px 16px; }
+    .gameover-title { font-size: 1.85rem; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div id="kill-flash" class="kill-flash hidden"></div>
+
+  <!-- Dramatic Stinger Overlay (Meeting Trigger / Ejection Reveal) -->
+  <div id="dramatic-overlay" class="dramatic-overlay hidden">
+    <div id="dramatic-title" class="dramatic-title">DEAD BODY REPORTED!</div>
+    <div id="dramatic-sub" class="dramatic-sub"></div>
+  </div>
+
+  <!-- Interactive Task / Breaker Mini-Game Overlay -->
+  <div id="minigame-backdrop" class="minigame-backdrop hidden">
+    <div class="minigame-card">
+      <div class="minigame-header">
+        <div>
+          <strong id="minigame-title" style="font-size:1.08rem; color:var(--amber);">TASK</strong>
+          <div id="minigame-sub" class="muted" style="font-size:0.82rem;"></div>
+        </div>
+        <button id="minigame-close-btn" class="btn btn-sm btn-danger" type="button">✕ Cancel [Esc]</button>
+      </div>
+      <div id="minigame-body"></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- LOBBY VIEW -->
+    <div id="lobby-view" class="card">
+      <div class="lobby-header">
+        <div>
+          <h2>Mini-Among Us 2D — Real-Time Multiplayer</h2>
+          <div class="muted">2D Raycast LOS Shadows &bull; Sabotage Lights &bull; Task Mini-Games &bull; 10 Hz Trajectory Logging</div>
+        </div>
+        <div class="lan-pill">
+          <span>Join URL:</span>
+          <strong id="lan-url">http://127.0.0.1:5000</strong>
+          <button class="btn btn-sm" id="copy-lan-btn" type="button">Copy</button>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:8px;">
+        <label for="player-name-input" class="muted">Your Name Tag (optional):</label>
+        <input id="player-name-input" class="input" type="text" maxlength="20" placeholder="e.g. Alice" style="width:200px;" />
+        <span id="my-seat-label" class="muted"></span>
+        <span id="ws-status-pill" class="badge badge-bot">WS: Idle</span>
+      </div>
+
+      <div id="slots-grid" class="slots-grid"></div>
+
+      <div class="lobby-controls">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input id="fill-bots-checkbox" type="checkbox" checked />
+          <span>Fill empty slots with 2D Bots</span>
+        </label>
+        <button id="start-game-btn" class="btn btn-primary" type="button">Start Real-Time Game</button>
+      </div>
+
+      <div class="data-bar">
+        <div>
+          Completed Games Logged: <strong id="games-logged-count">0</strong>
+          <span class="muted">(<code>data/games_log.jsonl</code>)</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+          <button id="export-csv-btn" class="btn btn-sm" type="button">Export CSVs</button>
+          <a id="dl-traj-csv" class="btn btn-sm hidden" href="/api/download/keystroke_trajectories.csv">keystroke_trajectories.csv</a>
+          <a id="dl-meeting-csv" class="btn btn-sm hidden" href="/api/download/meeting_features.csv">meeting_features.csv</a>
+          <a id="dl-jsonl" class="btn btn-sm hidden" href="/api/download/games_log.jsonl">games_log.jsonl</a>
+        </div>
+      </div>
+      <div id="lobby-feedback" class="error-toast hidden"></div>
+    </div>
+
+    <!-- GAME VIEW -->
+    <div id="game-view" class="hidden">
+      <div class="card status-bar">
+        <div class="status-group">
+          <strong id="status-player-id" style="font-size:1rem;">P0</strong>
+          <span id="status-role-badge" class="badge badge-crew">CREWMATE</span>
+          <span class="badge" style="background:#0c1424; border-color:#334155;">
+            Time <span id="status-time">0:00</span> / <span id="status-max-time">3:00</span>
+          </span>
+          <span id="status-zone" class="badge" style="background:#0c1424; border-color:#334155;">Cafeteria</span>
+          <button id="sfx-toggle-btn" class="btn btn-sm" type="button">SFX: ON</button>
+        </div>
+
+        <div class="task-bar-wrap">
+          <span class="muted" style="font-size:0.82rem;">Tasks:</span>
+          <div class="task-track"><div id="task-fill" class="task-fill"></div></div>
+          <strong id="task-counter" style="font-size:0.88rem;">0 / 12</strong>
+        </div>
+
+        <div id="roster-badges" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+      </div>
+
+      <div id="sabotage-alert" class="sabotage-alert hidden">
+        ⚡ LIGHTS SABOTAGED — Fix Breaker Panel in Electrical!
+      </div>
+
+      <div id="last-meeting-banner" class="summary-toast hidden"></div>
+
+      <!-- MAP PHASE -->
+      <div id="map-phase-container" class="game-grid">
+        <div class="card canvas-card">
+          <canvas id="world-canvas" width="1200" height="800"></canvas>
+          <div class="muted" style="margin-top:8px; font-size:0.82rem; display:flex; flex-wrap:wrap; gap:14px;">
+            <span><strong>WASD / Arrows</strong>: Move</span>
+            <span><strong>E / Space</strong>: Task / Fix Lights / Report / Meeting</span>
+            <span id="imp-key-hints" class="hidden"><strong>Q</strong>: Kill &bull; <strong>V</strong>: Vent &bull; <strong>F</strong>: Sabotage Lights</span>
+          </div>
+        </div>
+
+        <div class="side-stack">
+          <div class="card">
+            <h3>Controls &amp; HUD</h3>
+            <div id="dead-banner" class="error-toast hidden" style="margin-top:0; margin-bottom:8px; font-weight:700;">
+              You were eliminated. Spectating until the game concludes.
+            </div>
+
+            <div class="hud-actions">
+              <button id="btn-interact" class="btn btn-primary" type="button">INTERACT [E]</button>
+              <button id="btn-kill" class="btn btn-danger hidden" type="button">KILL [Q] (6.0s)</button>
+              <button id="btn-vent" class="btn btn-purple hidden" type="button">VENT [V]</button>
+              <button id="btn-sabotage" class="btn btn-sabotage hidden" type="button">SABOTAGE LIGHTS [F]</button>
+            </div>
+
+            <div id="task-progress-box" class="task-progress-box hidden">
+              <div style="display:flex; justify-content:space-between; font-size:0.84rem; margin-bottom:4px;">
+                <strong style="color:var(--amber);">Station Active</strong>
+                <span id="task-pct-label">0%</span>
+              </div>
+              <div class="task-track"><div id="local-task-fill" class="task-fill" style="background:var(--amber);"></div></div>
+            </div>
+
+            <div id="tasks-checklist-wrap" style="margin-top:12px;">
+              <strong style="font-size:0.88rem;">Assigned Tasks:</strong>
+              <ul id="tasks-checklist" class="task-list"></ul>
+            </div>
+
+            <div class="touch-dpad" id="touch-dpad">
+              <div></div>
+              <button type="button" data-dkey="w">&#9650;</button>
+              <div></div>
+              <button type="button" data-dkey="a">&#9664;</button>
+              <button type="button" data-dkey="s">&#9660;</button>
+              <button type="button" data-dkey="d">&#9654;</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>My Recent Sightings</h3>
+            <div class="muted" style="font-size:0.8rem;">LOS-verified vision log for meetings.</div>
+            <ul id="sightings-list-map" class="sightings-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEETING PHASE -->
+      <div id="meeting-phase-container" class="hidden meeting-grid">
+        <div class="card">
+          <div class="meeting-banner">
+            <div>
+              <strong id="meeting-title" style="font-size:1.1rem;">MEETING CALLED</strong>
+              <div id="meeting-subtitle" class="muted" style="color:#fecaca;"></div>
+            </div>
+            <span id="meeting-subphase-badge" class="badge badge-imp">QUICK CHAT</span>
+          </div>
+
+          <div id="speaker-queue" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;"></div>
+          <div id="chat-feed" class="chat-feed"></div>
+
+          <div id="chat-builder" class="chat-builder hidden">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:var(--cyan);">Your Turn to Speak</strong>
+              <span id="speaker-timer-text" class="muted">20s soft timer</span>
+            </div>
+            <div class="timer-track"><div id="speaker-timer-fill" class="timer-fill"></div></div>
+
+            <div class="builder-row">
+              <select id="chat-type-select">
+                <option value="CLAIM_LOC">CLAIM_LOC — Where I was</option>
+                <option value="VOUCH">VOUCH — Who I saw</option>
+                <option value="ACCUSE">ACCUSE — Accuse player</option>
+                <option value="PASS">PASS — No comment</option>
+              </select>
+
+              <select id="chat-target-select" class="hidden"></select>
+              <select id="chat-room-select"></select>
+              <select id="chat-window-select"></select>
+              <select id="chat-reason-select" class="hidden">
+                <option value="SAW_KILL">SAW_KILL</option>
+                <option value="SAW_VENT">SAW_VENT</option>
+                <option value="BAD_ALIBI">BAD_ALIBI</option>
+                <option value="SUSPICIOUS">SUSPICIOUS</option>
+              </select>
+            </div>
+
+            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px;">
+              <div class="muted">Preview: <em id="chat-preview" style="color:var(--text);"></em></div>
+              <button id="send-chat-btn" class="btn btn-primary" type="button">Send Statement</button>
+            </div>
+          </div>
+
+          <div id="chat-waiting-msg" class="waiting-banner hidden"></div>
+
+          <div id="vote-panel" class="hidden">
+            <h3 style="margin-top:8px;">Cast Your Vote</h3>
+            <div class="muted">Strict plurality ejects; ties or SKIP result in no ejection.</div>
+            <div id="vote-buttons" class="vote-grid"></div>
+            <div id="vote-waiting-msg" class="waiting-banner hidden"></div>
+          </div>
+          <div id="meeting-error-toast" class="error-toast hidden"></div>
+        </div>
+
+        <div class="card">
+          <h3>My Recent Sightings</h3>
+          <div class="muted" style="font-size:0.8rem;">Auto-logged sightings from your LOS vision this round.</div>
+          <ul id="sightings-list-meeting" class="sightings-list" style="max-height:420px;"></ul>
+        </div>
+      </div>
+
+      <!-- GAME OVER -->
+      <div id="gameover-container" class="card gameover-box hidden">
+        <div id="gameover-title" class="gameover-title">CREWMATES WIN!</div>
+        <div id="gameover-details" class="muted" style="font-size:1rem; margin-bottom:18px;"></div>
+        <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;">
+          <button id="play-again-btn" class="btn btn-primary" type="button">Play Next Game</button>
+          <button id="back-lobby-btn" class="btn" type="button">Return to Lobby</button>
+          <button id="gameover-export-btn" class="btn btn-success" type="button">Export CSVs</button>
+        </div>
+        <div id="gameover-export-msg" class="muted" style="margin-top:12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const PLAYERS = ["P0", "P1", "P2", "P3", "P4"];
+      const ROOMS = ["Cafeteria", "Medbay", "Admin", "Storage", "Reactor", "Electrical"];
+      const PLAYER_COLORS = {
+        P0: "#38bdf8",
+        P1: "#fb923c",
+        P2: "#4ade80",
+        P3: "#f472b6",
+        P4: "#facc15",
+      };
+      const ROOM_FLOOR_COLORS = {
+        Cafeteria: "#162235",
+        Medbay: "#102830",
+        Admin: "#191e38",
+        Storage: "#221e25",
+        Reactor: "#121a34",
+        Electrical: "#1f1d15",
+      };
+
+      const tokenKey = "mini_among_us_client_token";
+      const slotKey = "mini_among_us_player_id";
+      const nameKey = "mini_among_us_name";
+
+      let clientToken = sessionStorage.getItem(tokenKey);
+      if (!clientToken) {
+        clientToken = "tok_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        sessionStorage.setItem(tokenKey, clientToken);
+      }
+
+      let myPlayerId = sessionStorage.getItem(slotKey) || null;
+      let latestState = null;
+      let ws = null;
+      let wsConnectedFor = null;
+      let reconnectTimer = null;
+
+      const heldKeys = { w: false, a: false, s: false, d: false };
+      let lastSentKeysJson = "";
+
+      // Smooth 60fps canvas animation state
+      const renderPos = {};
+      const targetPos = {};
+      const facingDir = {};
+      const walkPhase = {};
+      let lastFrameTs = performance.now();
+
+      // Raycast fog canvas
+      const fogCanvas = document.createElement("canvas");
+      fogCanvas.width = 1200;
+      fogCanvas.height = 800;
+      const fogCtx = fogCanvas.getContext("2d");
+
+      // Tracking transitions for audio & stingers
+      let prevGameId = null;
+      let prevPhase = null;
+      let prevAlive = true;
+      let prevVisibleBodyCount = 0;
+      let prevLightsOut = false;
+      let prevTasksCompleted = 0;
+      let prevKillCooldown = 6.0;
+      let lastShownMeetingStingerId = 0;
+      let lastShownEjectSummaryId = 0;
+      let dramaticUntilMs = 0;
+      let lastFootstepMs = 0;
+
+      // Interactive mini-game popup state
+      let activeMiniGame = null;
+
+      // Meeting UI stability & RT measurement
+      let activePromptKey = null;
+      let promptStartMs = performance.now();
+      let activeBuilderKey = null;
+
+      const el = (id) => document.getElementById(id);
+
+      // -----------------------------------------------------------------------
+      // Synthesized WebAudio SFX (Zero External Assets)
+      // -----------------------------------------------------------------------
+      class SoundEngine {
+        constructor() {
+          this.ctx = null;
+          this.enabled = true;
+        }
+        unlock() {
+          if (!this.enabled) return;
+          if (!this.ctx) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) this.ctx = new Ctx();
+          }
+          if (this.ctx && this.ctx.state === "suspended") {
+            this.ctx.resume().catch(() => {});
+          }
+        }
+        tone(freqStart, freqEnd, dur, type = "sine", vol = 0.08, delay = 0) {
+          if (!this.enabled || !this.ctx) return;
+          const now = this.ctx.currentTime + delay;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freqStart, now);
+          if (freqEnd !== freqStart) {
+            osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), now + dur);
+          }
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(vol, now + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + dur + 0.02);
+        }
+        footstep() {
+          this.tone(130, 80, 0.045, "triangle", 0.025);
+        }
+        kill() {
+          this.tone(520, 90, 0.18, "sawtooth", 0.14);
+          this.tone(110, 40, 0.25, "square", 0.16, 0.04);
+        }
+        sabotage() {
+          this.tone(360, 110, 0.45, "sawtooth", 0.11);
+        }
+        taskComplete() {
+          this.tone(523.25, 523.25, 0.11, "triangle", 0.1, 0);
+          this.tone(783.99, 783.99, 0.22, "triangle", 0.12, 0.11);
+        }
+        meetingSiren() {
+          this.tone(660, 660, 0.18, "sawtooth", 0.11, 0);
+          this.tone(880, 880, 0.22, "sawtooth", 0.12, 0.18);
+          this.tone(660, 660, 0.24, "sawtooth", 0.11, 0.42);
+        }
+        eject() {
+          this.tone(240, 55, 0.65, "sine", 0.14, 0);
+        }
+      }
+
+      const sfx = new SoundEngine();
+
+      function triggerKillFlash() {
+        const kf = el("kill-flash");
+        kf.classList.remove("hidden");
+        kf.style.animation = "none";
+        void kf.offsetWidth;
+        kf.style.animation = "";
+        setTimeout(() => kf.classList.add("hidden"), 480);
+      }
+
+      function showDramaticBanner(title, subtitle, color, durationMs) {
+        el("dramatic-title").textContent = title;
+        el("dramatic-title").style.color = color;
+        el("dramatic-sub").textContent = subtitle;
+        el("dramatic-overlay").classList.remove("hidden");
+        dramaticUntilMs = performance.now() + durationMs;
+        setTimeout(() => {
+          if (performance.now() >= dramaticUntilMs - 40) {
+            el("dramatic-overlay").classList.add("hidden");
+          }
+        }, durationMs);
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function formatSec(sec) {
+        const total = Math.max(0, Math.floor(sec));
+        const m = Math.floor(total / 60);
+        const s = total % 60;
+        return `${m}:${String(s).padStart(2, "0")}`;
+      }
+
+      function syncPromptKey(nextKey) {
+        if (nextKey !== activePromptKey) {
+          activePromptKey = nextKey;
+          promptStartMs = performance.now();
+        }
+      }
+
+      function computeRtMs() {
+        return Math.max(1, Math.round(performance.now() - promptStartMs));
+      }
+
+      async function postJson(url, body) {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body || {}),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || data.error || "Request failed");
+        return data;
+      }
+
+      function showLobbyFeedback(msg, isInfo = false) {
+        const box = el("lobby-feedback");
+        if (!msg) {
+          box.classList.add("hidden");
+          return;
+        }
+        box.textContent = msg;
+        box.style.borderColor = isInfo ? "rgba(52,211,153,0.5)" : "rgba(248,113,113,0.5)";
+        box.style.background = isInfo ? "rgba(6,95,70,0.28)" : "rgba(248,113,113,0.16)";
+        box.style.color = isInfo ? "#a7f3d0" : "#fecaca";
+        box.classList.remove("hidden");
+      }
+
+      // -----------------------------------------------------------------------
+      // WebSocket Management
+      // -----------------------------------------------------------------------
+      function sendWs(payload) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(payload));
+          return true;
+        }
+        return false;
+      }
+
+      function sendKeysIfChanged(force = false) {
+        const active = latestState && !latestState.in_lobby && latestState.phase === "MAP" && latestState.is_alive && !activeMiniGame;
+        const payload = active
+          ? { type: "keys", w: heldKeys.w, a: heldKeys.a, s: heldKeys.s, d: heldKeys.d }
+          : { type: "keys", w: false, a: false, s: false, d: false };
+        const json = JSON.stringify(payload);
+        if (force || json !== lastSentKeysJson) {
+          lastSentKeysJson = json;
+          sendWs(payload);
+        }
+      }
+
+      function clearHeldKeys() {
+        heldKeys.w = false;
+        heldKeys.a = false;
+        heldKeys.s = false;
+        heldKeys.d = false;
+        document.querySelectorAll("#touch-dpad button").forEach((b) => b.classList.remove("active"));
+        sendKeysIfChanged();
+      }
+
+      function disconnectWs() {
+        wsConnectedFor = null;
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        if (ws) {
+          ws.onclose = null;
+          ws.close();
+          ws = null;
+        }
+        el("ws-status-pill").textContent = "WS: Idle";
+      }
+
+      function connectWsIfNeeded() {
+        if (!myPlayerId) {
+          disconnectWs();
+          return;
+        }
+        if (ws && wsConnectedFor === myPlayerId && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+          return;
+        }
+        disconnectWs();
+        wsConnectedFor = myPlayerId;
+        const proto = window.location.protocol === "https:" ? "wss" : "ws";
+        const url = `${proto}://${window.location.host}/ws?player=${encodeURIComponent(myPlayerId)}&token=${encodeURIComponent(clientToken)}`;
+        ws = new WebSocket(url);
+
+        ws.onopen = () => {
+          el("ws-status-pill").textContent = `WS: Connected (${myPlayerId})`;
+          el("ws-status-pill").className = "badge badge-alive";
+          sendKeysIfChanged(true);
+        };
+
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.error) {
+              el("meeting-error-toast").textContent = msg.error;
+              el("meeting-error-toast").classList.remove("hidden");
+              return;
+            }
+            if (msg.type === "pong") return;
+            if (msg.in_lobby) renderLobby(msg.lobby);
+            else if (msg.phase) renderGame(msg);
+          } catch (_) {}
+        };
+
+        ws.onclose = () => {
+          el("ws-status-pill").textContent = "WS: Reconnecting...";
+          el("ws-status-pill").className = "badge badge-bot";
+          ws = null;
+          if (myPlayerId && !reconnectTimer) {
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null;
+              connectWsIfNeeded();
+            }, 800);
+          }
+        };
+      }
+
+      // -----------------------------------------------------------------------
+      // Interactive Task & Breaker Mini-Games
+      // -----------------------------------------------------------------------
+      function closeMiniGame(sendCancel = true) {
+        if (!activeMiniGame) return;
+        activeMiniGame = null;
+        el("minigame-backdrop").classList.add("hidden");
+        el("minigame-body").innerHTML = "";
+        if (sendCancel) sendWs({ type: "cancel_task" });
+        sendKeysIfChanged(true);
+      }
+
+      function openBreakerMiniGame() {
+        clearHeldKeys();
+        const switches = [false, Math.random() < 0.35, false];
+        activeMiniGame = { kind: "BREAKER", stationId: null };
+        el("minigame-title").textContent = "ELECTRICAL BREAKER PANEL";
+        el("minigame-sub").textContent = "Flip all 3 switches ON to restore Ship Lights.";
+        el("minigame-backdrop").classList.remove("hidden");
+
+        const renderBreaker = () => {
+          const body = el("minigame-body");
+          body.innerHTML = `<div class="breaker-grid" id="breaker-grid"></div>`;
+          const grid = el("breaker-grid");
+          switches.forEach((isOn, idx) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "breaker-switch" + (isOn ? " on" : "");
+            btn.textContent = `SW ${idx + 1}: ${isOn ? "ON" : "OFF"}`;
+            btn.addEventListener("click", () => {
+              switches[idx] = !switches[idx];
+              sfx.footstep();
+              renderBreaker();
+              if (switches.every(Boolean)) {
+                sfx.taskComplete();
+                sendWs({ type: "fix_lights" });
+                closeMiniGame(false);
+              }
+            });
+            grid.appendChild(btn);
+          });
+        };
+        renderBreaker();
+      }
+
+      function openTaskMiniGame(stationId, room, label, isFake) {
+        clearHeldKeys();
+        let kind = "WIRES";
+        if (room === "Admin" || room === "Cafeteria") kind = "KEYPAD";
+        else if (room === "Reactor" || room === "Medbay") kind = "SEQUENCE";
+
+        activeMiniGame = { kind, stationId, isFake };
+        el("minigame-title").textContent = `${isFake ? "FAKE TASK: " : ""}${label.toUpperCase()} (${room})`;
+        el("minigame-backdrop").classList.remove("hidden");
+
+        const finishTask = () => {
+          sfx.taskComplete();
+          if (!isFake) sendWs({ type: "task_complete", station_id: stationId });
+          else sendWs({ type: "cancel_task" });
+          closeMiniGame(false);
+        };
+
+        if (kind === "KEYPAD") {
+          const code = String(Math.floor(1000 + Math.random() * 9000));
+          let entered = "";
+          el("minigame-sub").textContent = `Enter keypad code: ${code}`;
+
+          const renderKeypad = () => {
+            const body = el("minigame-body");
+            body.innerHTML = `
+              <div style="text-align:center; margin-bottom:8px;">
+                <span class="badge badge-crew" style="font-size:0.95rem;">Sticky Note Code: <strong>${code}</strong></span>
+              </div>
+              <div class="keypad-display" id="kp-disp">${entered.padEnd(4, "_")}</div>
+              <div class="keypad-grid" id="kp-grid"></div>
+            `;
+            const grid = el("kp-grid");
+            ["1","2","3","4","5","6","7","8","9","CLR","0","OK"].forEach((k) => {
+              const b = document.createElement("button");
+              b.type = "button";
+              b.className = "btn" + (k === "OK" ? " btn-success" : k === "CLR" ? " btn-danger" : "");
+              b.textContent = k;
+              b.addEventListener("click", () => {
+                sfx.footstep();
+                if (k === "CLR") entered = "";
+                else if (k === "OK") {
+                  if (entered === code) finishTask();
+                  else { entered = ""; sfx.sabotage(); }
+                } else if (entered.length < 4) {
+                  entered += k;
+                  if (entered === code) {
+                    setTimeout(finishTask, 140);
+                  }
+                }
+                if (activeMiniGame && activeMiniGame.kind === "KEYPAD") renderKeypad();
+              });
+              grid.appendChild(b);
+            });
+          };
+          renderKeypad();
+          activeMiniGame.onKey = (digit) => {
+            if (!activeMiniGame || activeMiniGame.kind !== "KEYPAD") return;
+            if (digit === "Backspace") entered = entered.slice(0, -1);
+            else if (/^\d$/.test(digit) && entered.length < 4) {
+              entered += digit;
+              if (entered === code) {
+                setTimeout(finishTask, 140);
+              }
+            }
+            renderKeypad();
+          };
+        } else if (kind === "SEQUENCE") {
+          el("minigame-sub").textContent = "Click manifolds 1 through 5 in ascending order.";
+          const nums = [1, 2, 3, 4, 5].sort(() => Math.random() - 0.5);
+          let nextExpected = 1;
+
+          const renderSeq = () => {
+            const body = el("minigame-body");
+            body.innerHTML = `<div class="seq-grid" id="seq-grid"></div>`;
+            const grid = el("seq-grid");
+            nums.forEach((n) => {
+              const btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "btn seq-btn" + (n < nextExpected ? " done" : "");
+              btn.textContent = String(n);
+              btn.disabled = n < nextExpected;
+              btn.addEventListener("click", () => {
+                if (n === nextExpected) {
+                  sfx.footstep();
+                  nextExpected += 1;
+                  if (nextExpected > 5) finishTask();
+                  else renderSeq();
+                } else {
+                  sfx.sabotage();
+                  nextExpected = 1;
+                  renderSeq();
+                }
+              });
+              grid.appendChild(btn);
+            });
+          };
+          renderSeq();
+        } else {
+          // Match 3 colored wires
+          el("minigame-sub").textContent = "Click a left wire, then click its matching color on the right.";
+          const colors = [
+            { id: "RED", hex: "#ef4444" },
+            { id: "BLUE", hex: "#38bdf8" },
+            { id: "YELLOW", hex: "#facc15" },
+          ];
+          const rightColors = [...colors].sort(() => Math.random() - 0.5);
+          let selectedLeft = null;
+          const matched = new Set();
+
+          const renderWires = () => {
+            const body = el("minigame-body");
+            body.innerHTML = `
+              <div class="wires-wrap" id="wires-wrap">
+                <svg id="wires-svg" style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none;"></svg>
+                <div class="wires-col" id="wires-left"></div>
+                <div class="wires-col" id="wires-right"></div>
+              </div>
+            `;
+            const leftCol = el("wires-left");
+            const rightCol = el("wires-right");
+
+            colors.forEach((c) => {
+              const btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "wire-node" + (selectedLeft === c.id ? " selected" : "");
+              btn.style.background = c.hex;
+              btn.textContent = matched.has(c.id) ? `${c.id} ✓` : c.id;
+              btn.dataset.wid = c.id;
+              btn.addEventListener("click", () => {
+                if (!matched.has(c.id)) {
+                  selectedLeft = c.id;
+                  sfx.footstep();
+                  renderWires();
+                }
+              });
+              leftCol.appendChild(btn);
+            });
+
+            rightColors.forEach((c) => {
+              const btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "wire-node";
+              btn.style.background = c.hex;
+              btn.textContent = matched.has(c.id) ? `${c.id} ✓` : c.id;
+              btn.dataset.wid = c.id;
+              btn.addEventListener("click", () => {
+                if (selectedLeft && selectedLeft === c.id) {
+                  matched.add(c.id);
+                  selectedLeft = null;
+                  sfx.footstep();
+                  if (matched.size === 3) finishTask();
+                  else renderWires();
+                } else if (selectedLeft) {
+                  sfx.sabotage();
+                  selectedLeft = null;
+                  renderWires();
+                }
+              });
+              rightCol.appendChild(btn);
+            });
+
+            requestAnimationFrame(() => {
+              const wrap = el("wires-wrap");
+              const svg = el("wires-svg");
+              if (!wrap || !svg) return;
+              const wr = wrap.getBoundingClientRect();
+              let linesHtml = "";
+              matched.forEach((cid) => {
+                const lNode = leftCol.querySelector(`[data-wid="${cid}"]`);
+                const rNode = rightCol.querySelector(`[data-wid="${cid}"]`);
+                if (lNode && rNode) {
+                  const lr = lNode.getBoundingClientRect();
+                  const rr = rNode.getBoundingClientRect();
+                  const x1 = lr.right - wr.left;
+                  const y1 = lr.top + lr.height / 2 - wr.top;
+                  const x2 = rr.left - wr.left;
+                  const y2 = rr.top + rr.height / 2 - wr.top;
+                  const hex = colors.find((cc) => cc.id === cid).hex;
+                  linesHtml += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${hex}" stroke-width="6" stroke-linecap="round" />`;
+                }
+              });
+              svg.innerHTML = linesHtml;
+            });
+          };
+          renderWires();
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // Lobby Rendering
+      // -----------------------------------------------------------------------
+      function renderLobby(lobby) {
+        latestState = { in_lobby: true, lobby };
+        closeMiniGame(false);
+        el("lobby-view").classList.remove("hidden");
+        el("game-view").classList.add("hidden");
+        el("lan-url").textContent = lobby.lan_url;
+        el("games-logged-count").textContent = String(lobby.games_logged_count || 0);
+        el("fill-bots-checkbox").checked = Boolean(lobby.fill_bots);
+
+        el("dl-traj-csv").classList.toggle("hidden", !lobby.csv_ready.keystroke_trajectories);
+        el("dl-meeting-csv").classList.toggle("hidden", !lobby.csv_ready.meeting_features);
+        el("dl-jsonl").classList.toggle("hidden", !(lobby.games_logged_count > 0));
+
+        if ("my_slot" in lobby) {
+          if (lobby.my_slot) {
+            myPlayerId = lobby.my_slot;
+            sessionStorage.setItem(slotKey, myPlayerId);
+          } else {
+            myPlayerId = null;
+            sessionStorage.removeItem(slotKey);
+          }
+        } else if (myPlayerId && lobby.slots[myPlayerId] && !lobby.slots[myPlayerId].claimed) {
+          myPlayerId = null;
+          sessionStorage.removeItem(slotKey);
+        }
+
+        connectWsIfNeeded();
+
+        el("my-seat-label").textContent = myPlayerId
+          ? `Seated as ${myPlayerId}`
+          : "Claim a player slot P0–P4 to play";
+
+        const grid = el("slots-grid");
+        grid.innerHTML = "";
+        PLAYERS.forEach((pid) => {
+          const s = lobby.slots[pid];
+          const isMine = myPlayerId === pid && s.claimed;
+          const card = document.createElement("div");
+          card.className = "slot-card" + (isMine ? " mine" : "");
+
+          let statusHtml = "";
+          if (s.claimed) {
+            statusHtml = `<span class="badge badge-alive">${escapeHtml(s.name || pid)}</span>`;
+          } else if (lobby.fill_bots || s.force_bot) {
+            statusHtml = `<span class="badge badge-bot">BOT</span>`;
+          } else {
+            statusHtml = `<span class="badge" style="color:var(--muted); border-color:var(--border);">Empty</span>`;
+          }
+
+          let actionHtml = "";
+          if (isMine) {
+            actionHtml = `<button class="btn btn-sm btn-danger" data-action="release" data-pid="${pid}">Leave Seat</button>`;
+          } else if (!s.claimed) {
+            actionHtml = `
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-sm btn-primary" style="flex:1;" data-action="claim" data-pid="${pid}">Join ${pid}</button>
+                <button class="btn btn-sm" data-action="toggle-bot" data-pid="${pid}">${s.force_bot ? "Bot: ON" : "Bot: Auto"}</button>
+              </div>
+            `;
+          } else {
+            actionHtml = `<button class="btn btn-sm" disabled>Occupied</button>`;
+          }
+
+          card.innerHTML = `
+            <div class="slot-top">
+              <strong style="color:${PLAYER_COLORS[pid]}; font-size:1.05rem;">${pid}</strong>
+              ${statusHtml}
+            </div>
+            <div class="muted" style="font-size:0.82rem;">
+              ${s.claimed ? (isMine ? "Connected (You)" : "Human Player") : (lobby.fill_bots || s.force_bot ? "2D Waypoint Bot" : "Waiting for player")}
+            </div>
+            ${actionHtml}
+          `;
+          grid.appendChild(card);
+        });
+      }
+
+      // -----------------------------------------------------------------------
+      // Game UI Updates & Audio/Dramatic Triggers
+      // -----------------------------------------------------------------------
+      function handleGameAudioAndDramatics(obs) {
+        if (obs.game_id !== prevGameId) {
+          prevGameId = obs.game_id;
+          prevPhase = obs.phase;
+          prevAlive = obs.is_alive;
+          prevVisibleBodyCount = 0;
+          prevLightsOut = obs.lights_out;
+          prevTasksCompleted = obs.tasks_completed_total;
+          prevKillCooldown = obs.kill_cooldown || 6.0;
+          lastShownMeetingStingerId = 0;
+          lastShownEjectSummaryId = 0;
+        }
+
+        // Death / kill flash
+        if (prevAlive && !obs.is_alive) {
+          sfx.kill();
+          triggerKillFlash();
+          closeMiniGame(false);
+        }
+        if ((obs.visible_bodies || []).length > prevVisibleBodyCount) {
+          sfx.kill();
+        }
+        if (obs.my_role === "IMPOSTOR" && prevKillCooldown < 1.0 && (obs.kill_cooldown || 0) >= 11.0) {
+          sfx.kill();
+          triggerKillFlash();
+        }
+
+        // Sabotage / Fix lights audio
+        if (!prevLightsOut && obs.lights_out) {
+          sfx.sabotage();
+        } else if (prevLightsOut && !obs.lights_out && obs.phase === "MAP") {
+          sfx.taskComplete();
+        }
+
+        // Task complete chime
+        if (obs.tasks_completed_total > prevTasksCompleted) {
+          sfx.taskComplete();
+        }
+
+        // Meeting stinger (2.0s full-screen alert)
+        if (
+          (obs.phase === "MEETING_CHAT" || obs.phase === "MEETING_VOTE") &&
+          obs.meeting &&
+          obs.meeting.meeting_id !== lastShownMeetingStingerId
+        ) {
+          lastShownMeetingStingerId = obs.meeting.meeting_id;
+          closeMiniGame(false);
+          sfx.meetingSiren();
+          const m = obs.meeting;
+          if (m.trigger === "BODY_REPORT") {
+            showDramaticBanner(
+              "DEAD BODY REPORTED!",
+              `${m.caller} (${obs.player_names[m.caller] || m.caller}) found ${m.victim}'s body in ${m.body_zone}`,
+              "#f87171",
+              2000
+            );
+          } else {
+            showDramaticBanner(
+              "EMERGENCY MEETING!",
+              `Called by ${m.caller} (${obs.player_names[m.caller] || m.caller})`,
+              "#facc15",
+              2000
+            );
+          }
+        }
+
+        // Ejection reveal stinger after voting
+        if (
+          obs.last_meeting_summary &&
+          obs.last_meeting_summary.meeting_id !== lastShownEjectSummaryId &&
+          (obs.phase === "MAP" || obs.phase === "GAME_OVER")
+        ) {
+          lastShownEjectSummaryId = obs.last_meeting_summary.meeting_id;
+          const sm = obs.last_meeting_summary;
+          sfx.eject();
+          if (sm.ejected) {
+            const wasImp = sm.ejected_role === "IMPOSTOR";
+            const eName = `${sm.ejected} (${obs.player_names[sm.ejected] || sm.ejected})`;
+            showDramaticBanner(
+              `${eName} WAS EJECTED.`,
+              wasImp ? `${sm.ejected} was The Impostor.` : `${sm.ejected} was NOT The Impostor.`,
+              wasImp ? "#34d399" : "#f87171",
+              2600
+            );
+          } else {
+            showDramaticBanner(
+              "NO ONE WAS EJECTED.",
+              "Votes tied or skipped.",
+              "#93a4bf",
+              2200
+            );
+          }
+        }
+
+        prevPhase = obs.phase;
+        prevAlive = obs.is_alive;
+        prevVisibleBodyCount = (obs.visible_bodies || []).length;
+        prevLightsOut = obs.lights_out;
+        prevTasksCompleted = obs.tasks_completed_total;
+        prevKillCooldown = obs.kill_cooldown || 0;
+      }
+
+      function updateInterpolationTargets(obs) {
+        const updateOne = (pid, x, y, vx) => {
+          const cur = renderPos[pid];
+          if (!cur || Math.hypot(cur.x - x, cur.y - y) > 140) {
+            renderPos[pid] = { x, y };
+          }
+          targetPos[pid] = { x, y };
+          if (vx > 8) facingDir[pid] = 1;
+          else if (vx < -8) facingDir[pid] = -1;
+          else if (!facingDir[pid]) facingDir[pid] = 1;
+        };
+        updateOne(obs.my_player, obs.x, obs.y, obs.vx);
+        const visibleIds = new Set([obs.my_player]);
+        (obs.visible_players || []).forEach((vp) => {
+          visibleIds.add(vp.player_id);
+          updateOne(vp.player_id, vp.x, vp.y, vp.vx);
+        });
+        Object.keys(targetPos).forEach((pid) => {
+          if (!visibleIds.has(pid)) {
+            delete targetPos[pid];
+            delete renderPos[pid];
+          }
+        });
+      }
+
+      function renderSightings(ulId, items) {
+        const ul = el(ulId);
+        ul.innerHTML = "";
+        if (!items || items.length === 0) {
+          const li = document.createElement("li");
+          li.className = "sighting-item muted";
+          li.textContent = "No sightings recorded yet this round.";
+          ul.appendChild(li);
+          return;
+        }
+        items.slice().reverse().forEach((sg) => {
+          const li = document.createElement("li");
+          const isAlert = sg.kind === "SAW_KILL" || sg.kind === "SAW_VENT";
+          li.className = "sighting-item" + (isAlert ? " alert" : "");
+          li.textContent = sg.text;
+          ul.appendChild(li);
+        });
+      }
+
+      function renderStatusBar(obs) {
+        el("status-player-id").textContent = `${obs.my_player} (${obs.player_names[obs.my_player] || obs.my_player})`;
+        const roleBadge = el("status-role-badge");
+        roleBadge.textContent = obs.my_role;
+        roleBadge.className = "badge " + (obs.my_role === "IMPOSTOR" ? "badge-imp" : "badge-crew");
+
+        el("status-time").textContent = formatSec(obs.map_time);
+        el("status-max-time").textContent = formatSec(obs.max_map_time);
+        el("status-zone").textContent = obs.zone;
+
+        const pct = Math.min(100, Math.round((obs.tasks_completed_total / obs.tasks_win_threshold) * 100));
+        el("task-fill").style.width = `${pct}%`;
+        el("task-counter").textContent = `${obs.tasks_completed_total} / ${obs.tasks_win_threshold}`;
+
+        el("sabotage-alert").classList.toggle("hidden", !(obs.lights_out && obs.phase === "MAP"));
+
+        const roster = el("roster-badges");
+        roster.innerHTML = "";
+        const aliveSet = new Set(obs.alive_players);
+        PLAYERS.forEach((p) => {
+          const b = document.createElement("span");
+          const alive = aliveSet.has(p);
+          b.className = "badge " + (alive ? "badge-alive" : "badge-dead");
+          const label = obs.player_names[p] && obs.player_names[p] !== p ? `${p}: ${obs.player_names[p]}` : p;
+          b.textContent = alive ? label : `${label} ✕`;
+          roster.appendChild(b);
+        });
+
+        const sumBanner = el("last-meeting-banner");
+        if (obs.last_meeting_summary && obs.phase === "MAP") {
+          const sm = obs.last_meeting_summary;
+          const resText = sm.ejected
+            ? `${sm.ejected} (${obs.player_names[sm.ejected] || sm.ejected}) was ejected (${sm.ejected_role}).`
+            : "Nobody was ejected (Tie / Skip).";
+          sumBanner.textContent = `Meeting #${sm.meeting_id} (${formatSec(sm.t_called)}): ${resText}`;
+          sumBanner.classList.remove("hidden");
+        } else {
+          sumBanner.classList.add("hidden");
+        }
+      }
+
+      function renderMapHud(obs) {
+        el("map-phase-container").classList.remove("hidden");
+        el("meeting-phase-container").classList.add("hidden");
+        el("gameover-container").classList.add("hidden");
+
+        const isImp = obs.my_role === "IMPOSTOR";
+        el("imp-key-hints").classList.toggle("hidden", !isImp);
+        el("dead-banner").classList.toggle("hidden", obs.is_alive);
+
+        // Interact button context
+        const btnInt = el("btn-interact");
+        if (!obs.is_alive) {
+          btnInt.disabled = true;
+          btnInt.className = "btn";
+          btnInt.textContent = "ELIMINATED";
+        } else if (obs.can_report) {
+          btnInt.disabled = false;
+          btnInt.className = "btn btn-warning";
+          btnInt.textContent = "REPORT BODY [E]";
+        } else if (obs.near_lights_panel) {
+          btnInt.disabled = false;
+          btnInt.className = "btn btn-warning";
+          btnInt.textContent = "FIX LIGHTS [E]";
+        } else if (obs.near_button) {
+          btnInt.className = "btn btn-primary";
+          if (obs.meetings_called_by_me >= 1) {
+            btnInt.disabled = true;
+            btnInt.textContent = "MEETING USED";
+          } else if (obs.emergency_cooldown > 0) {
+            btnInt.disabled = true;
+            btnInt.textContent = `MEETING (${obs.emergency_cooldown.toFixed(1)}s)`;
+          } else {
+            btnInt.disabled = false;
+            btnInt.textContent = "CALL MEETING [E]";
+          }
+        } else if (obs.is_doing_task) {
+          btnInt.disabled = true;
+          btnInt.className = "btn btn-warning";
+          btnInt.textContent = "TASK OPEN...";
+        } else if (obs.can_start_task) {
+          btnInt.disabled = false;
+          btnInt.className = "btn btn-warning";
+          btnInt.textContent = isImp ? `FAKE: ${obs.near_station_label} [E]` : `DO: ${obs.near_station_label} [E]`;
+        } else {
+          btnInt.disabled = true;
+          btnInt.className = "btn";
+          btnInt.textContent = "USE / REPORT [E]";
+        }
+
+        // Impostor Kill, Vent, Sabotage buttons
+        const btnKill = el("btn-kill");
+        const btnVent = el("btn-vent");
+        const btnSab = el("btn-sabotage");
+        if (isImp && obs.is_alive) {
+          btnKill.classList.remove("hidden");
+          btnVent.classList.remove("hidden");
+          btnSab.classList.remove("hidden");
+
+          const kcd = obs.kill_cooldown || 0;
+          if (kcd > 0) {
+            btnKill.disabled = true;
+            btnKill.className = "btn btn-danger";
+            btnKill.textContent = `KILL [Q] (${kcd.toFixed(1)}s)`;
+          } else if (obs.can_kill_target) {
+            btnKill.disabled = false;
+            btnKill.className = "btn btn-danger btn-kill-ready";
+            btnKill.textContent = `KILL ${obs.can_kill_target} [Q]`;
+          } else {
+            btnKill.disabled = true;
+            btnKill.className = "btn btn-danger";
+            btnKill.textContent = "KILL [Q] (Out of range)";
+          }
+
+          const vcd = obs.vent_cooldown || 0;
+          if (vcd > 0) {
+            btnVent.disabled = true;
+            btnVent.textContent = `VENT [V] (${vcd.toFixed(1)}s)`;
+          } else if (obs.can_vent) {
+            btnVent.disabled = false;
+            btnVent.textContent = "VENT [V]";
+          } else {
+            btnVent.disabled = true;
+            btnVent.textContent = "VENT [V] (Move near vent)";
+          }
+
+          const scd = obs.sabotage_cooldown || 0;
+          if (obs.lights_out) {
+            btnSab.disabled = true;
+            btnSab.textContent = "LIGHTS OUT ACTIVE";
+          } else if (scd > 0) {
+            btnSab.disabled = true;
+            btnSab.textContent = `SABOTAGE LIGHTS [F] (${scd.toFixed(1)}s)`;
+          } else {
+            btnSab.disabled = false;
+            btnSab.textContent = "SABOTAGE LIGHTS [F]";
+          }
+        } else {
+          btnKill.classList.add("hidden");
+          btnVent.classList.add("hidden");
+          btnSab.classList.add("hidden");
+        }
+
+        const progBox = el("task-progress-box");
+        if (obs.is_doing_task) {
+          progBox.classList.remove("hidden");
+          const ratio = obs.task_progress_ratio || 0;
+          const pct = Math.round(ratio * 100);
+          el("task-pct-label").textContent = `${pct}%`;
+          el("local-task-fill").style.width = `${pct}%`;
+        } else {
+          progBox.classList.add("hidden");
+        }
+
+        const wrap = el("tasks-checklist-wrap");
+        const list = el("tasks-checklist");
+        list.innerHTML = "";
+        if (isImp) {
+          wrap.querySelector("strong").textContent = "Impostor Objective:";
+          const li = document.createElement("li");
+          li.className = "muted";
+          li.textContent = "Sabotage Lights [F] to blind Crewmates, stalk victims, and escape via vents.";
+          list.appendChild(li);
+        } else {
+          wrap.querySelector("strong").textContent = "Your Assigned Tasks (4):";
+          const inc = new Set(obs.incomplete_tasks || []);
+          (obs.assigned_tasks || []).forEach((st) => {
+            const done = !inc.has(st.station_id);
+            const li = document.createElement("li");
+            li.style.color = done ? "var(--green)" : "var(--amber)";
+            li.textContent = done ? `✓ ${st.room}: ${st.label}` : `• ${st.room}: ${st.label}`;
+            list.appendChild(li);
+          });
+        }
+
+        renderSightings("sightings-list-map", obs.my_recent_sightings);
+      }
+
+      // -----------------------------------------------------------------------
+      // Meeting Rendering
+      // -----------------------------------------------------------------------
+      function updateChatPreview() {
+        const type = el("chat-type-select").value;
+        const target = el("chat-target-select").value;
+        const room = el("chat-room-select").value;
+        const twin = el("chat-window-select").value;
+        const reason = el("chat-reason-select").value;
+
+        el("chat-target-select").classList.toggle("hidden", type !== "VOUCH" && type !== "ACCUSE");
+        el("chat-room-select").classList.toggle("hidden", type !== "CLAIM_LOC" && type !== "VOUCH");
+        el("chat-window-select").classList.toggle("hidden", type !== "CLAIM_LOC");
+        el("chat-reason-select").classList.toggle("hidden", type !== "ACCUSE");
+
+        let txt = "No comment.";
+        if (type === "CLAIM_LOC") txt = `I was in ${room} during ${twin}.`;
+        else if (type === "VOUCH") txt = `I saw ${target} in ${room}.`;
+        else if (type === "ACCUSE") txt = `I accuse ${target} (${reason}).`;
+        el("chat-preview").textContent = `"${txt}"`;
+      }
+
+      function syncChatBuilderOptions(obs) {
+        const m = obs.meeting;
+        const key = `${obs.game_id}:${m.meeting_id}:${m.current_speaker}`;
+        if (key === activeBuilderKey) return;
+        activeBuilderKey = key;
+
+        const targetSel = el("chat-target-select");
+        targetSel.innerHTML = "";
+        m.alive_at_meeting.filter((p) => p !== obs.my_player).forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = p;
+          opt.textContent = `${p} (${obs.player_names[p] || p})`;
+          targetSel.appendChild(opt);
+        });
+
+        const roomSel = el("chat-room-select");
+        roomSel.innerHTML = "";
+        ROOMS.forEach((r) => {
+          const opt = document.createElement("option");
+          opt.value = r;
+          opt.textContent = r;
+          roomSel.appendChild(opt);
+        });
+
+        const winSel = el("chat-window-select");
+        winSel.innerHTML = "";
+        (m.time_windows || []).slice().reverse().forEach((w) => {
+          const opt = document.createElement("option");
+          opt.value = w;
+          opt.textContent = w;
+          winSel.appendChild(opt);
+        });
+
+        el("chat-type-select").value = "CLAIM_LOC";
+        updateChatPreview();
+      }
+
+      function renderMeetingPhase(obs) {
+        el("map-phase-container").classList.add("hidden");
+        el("meeting-phase-container").classList.remove("hidden");
+        el("gameover-container").classList.add("hidden");
+
+        clearHeldKeys();
+        renderSightings("sightings-list-meeting", obs.my_recent_sightings);
+
+        const m = obs.meeting;
+        const isReport = m.trigger === "BODY_REPORT";
+        el("meeting-title").textContent = isReport
+          ? `BODY REPORT — Meeting #${m.meeting_id}`
+          : `EMERGENCY MEETING — Meeting #${m.meeting_id}`;
+        el("meeting-subtitle").textContent = isReport
+          ? `Reported by ${m.caller} (${obs.player_names[m.caller] || m.caller}) • Victim: ${m.victim} (${m.body_zone})`
+          : `Called by ${m.caller} (${obs.player_names[m.caller] || m.caller}) at ${formatSec(m.t_called)}`;
+        el("meeting-subphase-badge").textContent =
+          obs.phase === "MEETING_CHAT" ? "1. QUICK CHAT" : "2. VOTING";
+
+        const queue = el("speaker-queue");
+        queue.innerHTML = "";
+        const spokenSet = new Set(m.quick_chat.map((c) => c.player));
+        m.speaking_order.forEach((p) => {
+          const span = document.createElement("span");
+          const isCur = obs.phase === "MEETING_CHAT" && m.current_speaker === p;
+          const spoke = spokenSet.has(p);
+          span.className = "badge " + (isCur ? "badge-imp" : spoke ? "badge-alive" : "badge-bot");
+          span.textContent = isCur ? `${p} (Speaking...)` : spoke ? `${p} ✓` : p;
+          queue.appendChild(span);
+        });
+
+        const feed = el("chat-feed");
+        feed.innerHTML = "";
+        if (m.quick_chat.length === 0) {
+          feed.innerHTML = `<div class="muted">Waiting for ${m.speaking_order[0]} to speak first...</div>`;
+        } else {
+          m.quick_chat.forEach((c) => {
+            const div = document.createElement("div");
+            div.className = "chat-msg";
+            const name = obs.player_names[c.player] || c.player;
+            div.innerHTML = `<strong style="color:${PLAYER_COLORS[c.player]}">${escapeHtml(c.player)} (${escapeHtml(name)}):</strong> "${escapeHtml(c.text)}"`;
+            feed.appendChild(div);
+          });
+          feed.scrollTop = feed.scrollHeight;
+        }
+
+        const chatBuilder = el("chat-builder");
+        const chatWait = el("chat-waiting-msg");
+        const votePanel = el("vote-panel");
+
+        if (obs.phase === "MEETING_CHAT") {
+          votePanel.classList.add("hidden");
+          if (m.current_speaker === obs.my_player && obs.is_alive) {
+            syncPromptKey(`CHAT:${obs.game_id}:${m.meeting_id}:${m.current_speaker}`);
+            syncChatBuilderOptions(obs);
+            chatBuilder.classList.remove("hidden");
+            chatWait.classList.add("hidden");
+
+            const timeout = obs.speaker_timeout_sec || 20;
+            const elapsed = obs.speaker_elapsed_sec || 0;
+            const rem = Math.max(0, Math.ceil(timeout - elapsed));
+            const pct = Math.max(0, Math.min(100, ((timeout - elapsed) / timeout) * 100));
+            el("speaker-timer-text").textContent = `${rem}s soft timer`;
+            const fill = el("speaker-timer-fill");
+            fill.style.width = `${pct}%`;
+            fill.style.background = rem <= 5 ? "var(--red)" : "var(--cyan)";
+          } else {
+            chatBuilder.classList.add("hidden");
+            chatWait.classList.remove("hidden");
+            chatWait.textContent = `Waiting for ${m.current_speaker} (${obs.player_names[m.current_speaker] || m.current_speaker}) to speak...`;
+          }
+        } else {
+          chatBuilder.classList.add("hidden");
+          chatWait.classList.add("hidden");
+          votePanel.classList.remove("hidden");
+          if (obs.is_alive && !obs.has_submitted_vote) {
+            syncPromptKey(`VOTE:${obs.game_id}:${m.meeting_id}`);
+          }
+
+          const voteBtns = el("vote-buttons");
+          voteBtns.innerHTML = "";
+          const canVote = obs.is_alive && !obs.has_submitted_vote;
+          m.alive_at_meeting.forEach((p) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "btn";
+            btn.disabled = !canVote;
+            btn.textContent = `Vote ${p} (${obs.player_names[p] || p})`;
+            btn.dataset.voteTarget = p;
+            voteBtns.appendChild(btn);
+          });
+
+          const skipBtn = document.createElement("button");
+          skipBtn.type = "button";
+          skipBtn.className = "btn btn-warning";
+          skipBtn.disabled = !canVote;
+          skipBtn.textContent = "SKIP VOTE";
+          skipBtn.dataset.voteTarget = "SKIP";
+          voteBtns.appendChild(skipBtn);
+
+          const vWait = el("vote-waiting-msg");
+          if (obs.has_submitted_vote || !obs.is_alive) {
+            vWait.classList.remove("hidden");
+            vWait.textContent = `Waiting for votes (${m.votes_submitted_count}/${m.votes_required_count})...`;
+          } else {
+            vWait.classList.add("hidden");
+          }
+        }
+      }
+
+      function renderGameOver(obs) {
+        el("map-phase-container").classList.add("hidden");
+        el("meeting-phase-container").classList.add("hidden");
+        el("gameover-container").classList.remove("hidden");
+        clearHeldKeys();
+        closeMiniGame(false);
+
+        const go = obs.game_over;
+        const title = el("gameover-title");
+        title.textContent = go.winner === "CREWMATES" ? "CREWMATES WIN!" : "IMPOSTOR WINS!";
+        title.style.color = go.winner === "CREWMATES" ? "var(--cyan)" : "var(--red)";
+        el("gameover-details").textContent =
+          `Reason: ${go.win_reason} • Impostor: ${go.impostor} (${obs.player_names[go.impostor] || go.impostor}) • Duration: ${go.total_time}s (${go.total_ticks} ticks) • Games Logged: ${obs.games_logged_count}`;
+      }
+
+      function renderGame(obs) {
+        latestState = obs;
+        el("lobby-view").classList.add("hidden");
+        el("game-view").classList.remove("hidden");
+
+        handleGameAudioAndDramatics(obs);
+        updateInterpolationTargets(obs);
+        renderStatusBar(obs);
+
+        if (obs.phase === "MAP") renderMapHud(obs);
+        else if (obs.phase === "MEETING_CHAT" || obs.phase === "MEETING_VOTE") renderMeetingPhase(obs);
+        else if (obs.phase === "GAME_OVER") renderGameOver(obs);
+      }
+
+      // -----------------------------------------------------------------------
+      // Exact 2D Raycasted Visibility Polygon (Wall Shadows)
+      // -----------------------------------------------------------------------
+      function castRayInOpenSpace(ox, oy, dx, dy, maxDist, openRects) {
+        let t = 0;
+        for (let step = 0; step < 8; step += 1) {
+          const px = ox + (t + 0.05) * dx;
+          const py = oy + (t + 0.05) * dy;
+          let activeRect = null;
+          for (let i = 0; i < openRects.length; i += 1) {
+            const r = openRects[i];
+            if (px >= r[0] && px <= r[2] && py >= r[1] && py <= r[3]) {
+              activeRect = r;
+              break;
+            }
+          }
+          if (!activeRect) {
+            return Math.min(maxDist, t);
+          }
+          let tExit = maxDist;
+          if (dx > 1e-7) tExit = Math.min(tExit, (activeRect[2] - ox) / dx);
+          else if (dx < -1e-7) tExit = Math.min(tExit, (activeRect[0] - ox) / dx);
+          if (dy > 1e-7) tExit = Math.min(tExit, (activeRect[3] - oy) / dy);
+          else if (dy < -1e-7) tExit = Math.min(tExit, (activeRect[1] - oy) / dy);
+
+          if (tExit >= maxDist) return maxDist;
+          t = tExit;
+        }
+        return Math.min(maxDist, t);
+      }
+
+      function computeVisibilityPolygon(ox, oy, maxDist, openRects) {
+        const angles = [];
+        const baseRays = 160;
+        for (let i = 0; i < baseRays; i += 1) {
+          angles.push((i / baseRays) * Math.PI * 2 - Math.PI);
+        }
+        const limit2 = (maxDist + 90) * (maxDist + 90);
+        for (let i = 0; i < openRects.length; i += 1) {
+          const [x1, y1, x2, y2] = openRects[i];
+          const corners = [[x1, y1], [x2, y1], [x1, y2], [x2, y2]];
+          for (let c = 0; c < 4; c += 1) {
+            const cx = corners[c][0];
+            const cy = corners[c][1];
+            const d2 = (cx - ox) * (cx - ox) + (cy - oy) * (cy - oy);
+            if (d2 <= limit2 && d2 > 4) {
+              const ang = Math.atan2(cy - oy, cx - ox);
+              angles.push(ang - 0.0014, ang + 0.0014);
+            }
+          }
+        }
+        angles.sort((a, b) => a - b);
+        const pts = new Array(angles.length);
+        for (let i = 0; i < angles.length; i += 1) {
+          const a = angles[i];
+          const dx = Math.cos(a);
+          const dy = Math.sin(a);
+          const dist = castRayInOpenSpace(ox, oy, dx, dy, maxDist, openRects);
+          pts[i] = [ox + dx * dist, oy + dy * dist];
+        }
+        return pts;
+      }
+
+      // -----------------------------------------------------------------------
+      // 60fps HTML5 Canvas World + Bean Sprites + Raycast Shadows
+      // -----------------------------------------------------------------------
+      function drawBeanCharacter(ctx, x, y, pid, label, isDoingTask, taskProgressRatio, isSelf, isKillable, facing, bobY, legSwing, now) {
+        const color = PLAYER_COLORS[pid] || "#e2e8f0";
+        ctx.save();
+
+        // Ground shadow
+        ctx.fillStyle = "rgba(0,0,0,0.48)";
+        ctx.beginPath();
+        ctx.ellipse(x, y + 16, 14, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (isKillable) {
+          const pulse = 0.5 + 0.5 * Math.sin((now || 0) / 110);
+          ctx.strokeStyle = `rgba(239, 68, 68, ${0.65 + 0.35 * pulse})`;
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.arc(x, y, 24 + 3 * pulse, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = "#ef4444";
+          ctx.font = "900 11px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText("KILL [Q]", x, y + 34);
+        } else if (isSelf) {
+          ctx.strokeStyle = "rgba(255,255,255,0.4)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, y, 20, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Flip bean horizontally by facing direction
+        ctx.save();
+        ctx.translate(x, y + bobY);
+        ctx.scale(facing || 1, 1);
+
+        // Backpack
+        ctx.fillStyle = color;
+        ctx.strokeStyle = "#080c14";
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.roundRect(-16, -6, 8, 17, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        // Legs
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(-9, 8 + legSwing, 7, 8, 3);
+        ctx.roundRect(2, 8 - legSwing, 7, 8, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        // Bean torso + dome
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(-11, -15, 22, 26, 11);
+        ctx.fill();
+        ctx.stroke();
+
+        // Highlight rim
+        ctx.fillStyle = "rgba(255,255,255,0.22)";
+        ctx.beginPath();
+        ctx.ellipse(-3, -10, 6, 3, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Visor + glare
+        ctx.fillStyle = "#7dd3fc";
+        ctx.beginPath();
+        ctx.roundRect(-1, -10, 14, 8.5, 4);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#e0f2fe";
+        ctx.beginPath();
+        ctx.roundRect(3, -8.5, 7, 3, 2);
+        ctx.fill();
+
+        ctx.restore();
+
+        // Name pill
+        ctx.font = "bold 12px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(7, 11, 18, 0.8)";
+        const tw = ctx.measureText(label).width + 10;
+        ctx.fillRect(x - tw / 2, y - 34, tw, 15);
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillText(label, x, y - 23);
+
+        // Live task channeling progress bar
+        if (isDoingTask) {
+          const ratio = Math.max(0, Math.min(1, taskProgressRatio || 0));
+          const barW = 50;
+          const barH = 7;
+          const bx = x - barW / 2;
+          const by = y - 44;
+          ctx.fillStyle = "#090e18";
+          ctx.fillRect(bx, by, barW, barH);
+          ctx.fillStyle = ratio >= 0.98 ? "#34d399" : "#facc15";
+          ctx.fillRect(bx + 1, by + 1, Math.max(2, (barW - 2) * ratio), barH - 2);
+          ctx.strokeStyle = "#facc15";
+          ctx.lineWidth = 1.2;
+          ctx.strokeRect(bx, by, barW, barH);
+        }
+
+        ctx.restore();
+      }
+
+      function drawDeadBody(ctx, x, y, victim) {
+        const color = PLAYER_COLORS[victim] || "#ef4444";
+        ctx.save();
+        // Blood puddle
+        ctx.fillStyle = "rgba(185, 28, 28, 0.65)";
+        ctx.beginPath();
+        ctx.ellipse(x + 2, y + 6, 22, 12, 0.15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Half bean body
+        ctx.fillStyle = color;
+        ctx.strokeStyle = "#080c14";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.roundRect(x - 14, y - 5, 20, 15, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // Sliced cross-section + white bone
+        ctx.fillStyle = "#7f1d1d";
+        ctx.beginPath();
+        ctx.ellipse(x + 6, y + 2, 4, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f8fafc";
+        ctx.strokeStyle = "#080c14";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.roundRect(x + 5, y - 1, 11, 5, 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x + 15, y - 1, 3, 0, Math.PI * 2);
+        ctx.arc(x + 15, y + 4, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#fecaca";
+        ctx.font = "900 11px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText(`BODY: ${victim}`, x, y - 13);
+        ctx.restore();
+      }
+
+      function drawCanvasFrame(now) {
+        const dt = Math.min(0.1, (now - lastFrameTs) / 1000);
+        lastFrameTs = now;
+
+        const canvas = el("world-canvas");
+        const ctx = canvas.getContext("2d");
+
+        if (latestState && !latestState.in_lobby && latestState.phase === "MAP") {
+          const obs = latestState;
+          const geom = obs.map_geometry;
+
+          const alpha = 1 - Math.exp(-20 * dt);
+          Object.keys(targetPos).forEach((pid) => {
+            const t = targetPos[pid];
+            const r = renderPos[pid] || { x: t.x, y: t.y };
+            const speedApprox = Math.hypot(t.x - r.x, t.y - r.y);
+            r.x += (t.x - r.x) * alpha;
+            r.y += (t.y - r.y) * alpha;
+            renderPos[pid] = r;
+            if (speedApprox > 1.2) {
+              walkPhase[pid] = (walkPhase[pid] || 0) + dt * 14;
+            } else {
+              walkPhase[pid] = 0;
+            }
+          });
+
+          // Footstep audio tick when self is actively moving
+          if (obs.is_alive && Math.hypot(obs.vx, obs.vy) > 20 && now - lastFootstepMs > 280) {
+            lastFootstepMs = now;
+            sfx.footstep();
+          }
+
+          // Space background with subtle star dots
+          ctx.fillStyle = "#05080f";
+          ctx.fillRect(0, 0, 1200, 800);
+
+          // 1. Beveled hull walls (outer shadow + wall rim)
+          const wallPad = 12;
+          ctx.fillStyle = "#1e293b";
+          Object.values(geom.rooms).forEach(([x1, y1, x2, y2]) => {
+            ctx.fillRect(x1 - wallPad, y1 - wallPad, (x2 - x1) + wallPad * 2, (y2 - y1) + wallPad * 2);
+          });
+          Object.values(geom.corridors).forEach(([x1, y1, x2, y2]) => {
+            ctx.fillRect(x1 - wallPad, y1 - wallPad, (x2 - x1) + wallPad * 2, (y2 - y1) + wallPad * 2);
+          });
+
+          ctx.fillStyle = "#475569";
+          const innerPad = 6;
+          Object.values(geom.rooms).forEach(([x1, y1, x2, y2]) => {
+            ctx.fillRect(x1 - innerPad, y1 - innerPad, (x2 - x1) + innerPad * 2, (y2 - y1) + innerPad * 2);
+          });
+          Object.values(geom.corridors).forEach(([x1, y1, x2, y2]) => {
+            ctx.fillRect(x1 - innerPad, y1 - innerPad, (x2 - x1) + innerPad * 2, (y2 - y1) + innerPad * 2);
+          });
+
+          // 2. Interior walkable floor layers
+          ctx.fillStyle = "#0f1726";
+          Object.values(geom.corridors).forEach(([x1, y1, x2, y2]) => {
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+          });
+          Object.entries(geom.rooms).forEach(([name, [x1, y1, x2, y2]]) => {
+            ctx.fillStyle = ROOM_FLOOR_COLORS[name] || "#141f33";
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+          });
+
+          // Tile grid lines
+          ctx.strokeStyle = "rgba(148, 163, 184, 0.06)";
+          ctx.lineWidth = 1;
+          for (let gx = 80; gx <= 1120; gx += 40) {
+            ctx.beginPath(); ctx.moveTo(gx, 55); ctx.lineTo(gx, 740); ctx.stroke();
+          }
+          for (let gy = 55; gy <= 740; gy += 40) {
+            ctx.beginPath(); ctx.moveTo(80, gy); ctx.lineTo(1120, gy); ctx.stroke();
+          }
+
+          // Subtle room floor emblems
+          // Medbay cross
+          ctx.fillStyle = "rgba(45, 212, 191, 0.08)";
+          ctx.fillRect(195, 160, 30, 60);
+          ctx.fillRect(180, 175, 60, 30);
+          // Reactor core glow
+          ctx.fillStyle = "rgba(56, 189, 248, 0.12)";
+          ctx.beginPath(); ctx.arc(210, 610, 44, 0, Math.PI * 2); ctx.fill();
+
+          // 3. Room floor labels
+          ctx.font = "800 22px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillStyle = "rgba(226, 232, 240, 0.18)";
+          Object.entries(geom.rooms).forEach(([name, [x1, y1, x2, y2]]) => {
+            ctx.fillText(name.toUpperCase(), (x1 + x2) / 2, (y1 + y2) / 2 + 8);
+          });
+
+          // 4. Cafeteria Table & Emergency Button
+          const [bx, by] = geom.emergency_button;
+          ctx.fillStyle = "#1e293b";
+          ctx.beginPath(); ctx.arc(bx, by, 30, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = "#facc15"; ctx.lineWidth = 3; ctx.stroke();
+          ctx.fillStyle = "#dc2626";
+          ctx.beginPath(); ctx.arc(bx, by, 14, 0, Math.PI * 2); ctx.fill();
+
+          // 5. Electrical Lights Breaker Panel
+          if (geom.lights_panel) {
+            const [lx, ly] = geom.lights_panel;
+            const blink = obs.lights_out && Math.sin(now / 140) > 0;
+            ctx.fillStyle = obs.lights_out ? (blink ? "#7f1d1d" : "#450a0a") : "#1e293b";
+            ctx.strokeStyle = obs.lights_out ? "#ef4444" : "#eab308";
+            ctx.lineWidth = 2.5;
+            ctx.fillRect(lx - 15, ly - 15, 30, 30);
+            ctx.strokeRect(lx - 15, ly - 15, 30, 30);
+            ctx.fillStyle = obs.lights_out ? "#fecaca" : "#fef08a";
+            ctx.font = "800 10px system-ui";
+            ctx.textAlign = "center";
+            ctx.fillText("LIGHTS", lx, ly - 20);
+            ctx.font = "800 13px system-ui";
+            ctx.fillText("⚡", lx, ly + 5);
+          }
+
+          // 6. Task Stations
+          const incSet = new Set(obs.incomplete_tasks || []);
+          const pulse = 0.5 + 0.5 * Math.sin(now / 180);
+          geom.task_stations.forEach((st) => {
+            const isMine = obs.my_role === "CREWMATE" && incSet.has(st.station_id);
+            if (isMine) {
+              ctx.strokeStyle = `rgba(250, 204, 21, ${0.45 + 0.5 * pulse})`;
+              ctx.lineWidth = 3;
+              ctx.beginPath(); ctx.arc(st.x, st.y, 24 + 4 * pulse, 0, Math.PI * 2); ctx.stroke();
+            }
+            ctx.fillStyle = isMine ? "#facc15" : "#475569";
+            ctx.strokeStyle = "#090e18";
+            ctx.lineWidth = 2;
+            ctx.fillRect(st.x - 13, st.y - 13, 26, 26);
+            ctx.strokeRect(st.x - 13, st.y - 13, 26, 26);
+            ctx.font = "700 10px system-ui";
+            ctx.fillStyle = isMine ? "#fef08a" : "#94a3b8";
+            ctx.textAlign = "center";
+            ctx.fillText(st.label, st.x, st.y - 18);
+          });
+
+          // 7. Vents (Impostor only)
+          if (geom.vents) {
+            geom.vents.forEach((v) => {
+              ctx.fillStyle = "#2e1065";
+              ctx.strokeStyle = "#a855f7";
+              ctx.lineWidth = 2.5;
+              ctx.fillRect(v.x - 16, v.y - 12, 32, 24);
+              ctx.strokeRect(v.x - 16, v.y - 12, 32, 24);
+              ctx.strokeStyle = "#d8b4fe";
+              ctx.lineWidth = 1.5;
+              for (let sx = -10; sx <= 10; sx += 7) {
+                ctx.beginPath(); ctx.moveTo(v.x + sx, v.y - 8); ctx.lineTo(v.x + sx, v.y + 8); ctx.stroke();
+              }
+              ctx.font = "700 10px system-ui";
+              ctx.fillStyle = "#e9d5ff";
+              ctx.textAlign = "center";
+              ctx.fillText("VENT", v.x, v.y + 24);
+            });
+          }
+
+          // 8. Visible Dead Bodies
+          (obs.visible_bodies || []).forEach((b) => drawDeadBody(ctx, b.x, b.y, b.victim));
+
+          // 9. Visible Bean Players + Self
+          const mePos = renderPos[obs.my_player] || { x: obs.x, y: obs.y };
+          if (obs.my_role === "IMPOSTOR" && obs.is_alive && (obs.kill_cooldown || 0) <= 0) {
+            ctx.save();
+            ctx.strokeStyle = obs.can_kill_target ? "rgba(239, 68, 68, 0.55)" : "rgba(239, 68, 68, 0.22)";
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath(); ctx.arc(mePos.x, mePos.y, 80, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+          }
+
+          (obs.visible_players || []).forEach((vp) => {
+            const p = renderPos[vp.player_id] || { x: vp.x, y: vp.y };
+            const lbl = obs.player_names[vp.player_id] || vp.player_id;
+            const killable = obs.my_role === "IMPOSTOR" && (obs.kill_cooldown || 0) <= 0 && obs.can_kill_target === vp.player_id;
+            const wp = walkPhase[vp.player_id] || 0;
+            const bob = wp > 0 ? -Math.abs(Math.sin(wp)) * 3.5 : 0;
+            const leg = wp > 0 ? Math.sin(wp) * 2.5 : 0;
+            drawBeanCharacter(ctx, p.x, p.y, vp.player_id, lbl, vp.is_doing_task, vp.task_progress_ratio || 0, false, killable, facingDir[vp.player_id] || 1, bob, leg, now);
+          });
+
+          if (obs.is_alive) {
+            const myLbl = obs.player_names[obs.my_player] || obs.my_player;
+            const wp = walkPhase[obs.my_player] || 0;
+            const bob = wp > 0 ? -Math.abs(Math.sin(wp)) * 3.5 : 0;
+            const leg = wp > 0 ? Math.sin(wp) * 2.5 : 0;
+            drawBeanCharacter(ctx, mePos.x, mePos.y, obs.my_player, myLbl, obs.is_doing_task, obs.task_progress_ratio || 0, true, false, facingDir[obs.my_player] || 1, bob, leg, now);
+          }
+
+          // 10. True 2D Raycasted Wall-Shadow Visibility Mask
+          if (fogCtx) {
+            const vr = obs.vision_radius || 220;
+            fogCtx.globalCompositeOperation = "source-over";
+            fogCtx.clearRect(0, 0, 1200, 800);
+            fogCtx.fillStyle = obs.lights_out ? "rgba(2, 4, 9, 0.96)" : "rgba(4, 7, 13, 0.90)";
+            fogCtx.fillRect(0, 0, 1200, 800);
+
+            if (obs.is_alive && geom.open_rects) {
+              const poly = computeVisibilityPolygon(mePos.x, mePos.y, vr, geom.open_rects);
+              if (poly.length > 2) {
+                fogCtx.save();
+                fogCtx.globalCompositeOperation = "destination-out";
+                fogCtx.beginPath();
+                fogCtx.moveTo(poly[0][0], poly[0][1]);
+                for (let i = 1; i < poly.length; i += 1) {
+                  fogCtx.lineTo(poly[i][0], poly[i][1]);
+                }
+                fogCtx.closePath();
+                fogCtx.clip();
+
+                const grad = fogCtx.createRadialGradient(mePos.x, mePos.y, vr * 0.65, mePos.x, mePos.y, vr);
+                grad.addColorStop(0, "rgba(0,0,0,1)");
+                grad.addColorStop(1, "rgba(0,0,0,0)");
+                fogCtx.fillStyle = grad;
+                fogCtx.fillRect(mePos.x - vr - 5, mePos.y - vr - 5, vr * 2 + 10, vr * 2 + 10);
+                fogCtx.restore();
+              }
+            }
+            ctx.drawImage(fogCanvas, 0, 0);
+          }
+        }
+
+        requestAnimationFrame(drawCanvasFrame);
+      }
+
+      // -----------------------------------------------------------------------
+      // Interaction Trigger (Context-Aware: Report -> Fix Lights -> Task -> Button)
+      // -----------------------------------------------------------------------
+      function handlePrimaryInteract() {
+        if (!latestState || latestState.in_lobby || latestState.phase !== "MAP" || !latestState.is_alive) return;
+        if (latestState.can_report || latestState.can_call_meeting) {
+          sendWs({ type: "trigger", action: "interact" });
+          return;
+        }
+        if (latestState.near_lights_panel) {
+          openBreakerMiniGame();
+          return;
+        }
+        if (latestState.can_start_task && latestState.near_station_id) {
+          sendWs({ type: "trigger", action: "interact" });
+          openTaskMiniGame(
+            latestState.near_station_id,
+            latestState.near_station_room,
+            latestState.near_station_label,
+            latestState.my_role === "IMPOSTOR"
+          );
+          return;
+        }
+        sendWs({ type: "trigger", action: "interact" });
+      }
+
+      // -----------------------------------------------------------------------
+      // Keyboard & Touch Input Handlers
+      // -----------------------------------------------------------------------
+      function keyToDir(code) {
+        if (code === "KeyW" || code === "ArrowUp") return "w";
+        if (code === "KeyS" || code === "ArrowDown") return "s";
+        if (code === "KeyA" || code === "ArrowLeft") return "a";
+        if (code === "KeyD" || code === "ArrowRight") return "d";
+        return null;
+      }
+
+      window.addEventListener("keydown", (e) => {
+        sfx.unlock();
+        if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
+        if (!latestState || latestState.in_lobby || latestState.phase !== "MAP" || !latestState.is_alive) return;
+
+        if (activeMiniGame) {
+          if (e.code === "Escape") {
+            e.preventDefault();
+            closeMiniGame(true);
+            return;
+          }
+          if (activeMiniGame.onKey && (/^\d$/.test(e.key) || e.key === "Backspace")) {
+            e.preventDefault();
+            activeMiniGame.onKey(e.key);
+            return;
+          }
+          return;
+        }
+
+        const dir = keyToDir(e.code);
+        if (dir) {
+          e.preventDefault();
+          if (!heldKeys[dir]) {
+            heldKeys[dir] = true;
+            sendKeysIfChanged();
+          }
+          return;
+        }
+
+        if (e.repeat) return;
+        if (e.code === "KeyE" || e.code === "Space") {
+          e.preventDefault();
+          handlePrimaryInteract();
+        } else if (e.code === "KeyQ") {
+          e.preventDefault();
+          sendWs({ type: "trigger", action: "kill" });
+        } else if (e.code === "KeyV") {
+          e.preventDefault();
+          sendWs({ type: "trigger", action: "vent" });
+        } else if (e.code === "KeyF") {
+          e.preventDefault();
+          sendWs({ type: "trigger", action: "sabotage" });
+        }
+      });
+
+      window.addEventListener("keyup", (e) => {
+        const dir = keyToDir(e.code);
+        if (dir && heldKeys[dir]) {
+          heldKeys[dir] = false;
+          sendKeysIfChanged();
+        }
+      });
+
+      window.addEventListener("blur", clearHeldKeys);
+      window.addEventListener("pointerdown", () => sfx.unlock(), { passive: true });
+
+      document.querySelectorAll("#touch-dpad button[data-dkey]").forEach((btn) => {
+        const k = btn.dataset.dkey;
+        const press = (ev) => {
+          ev.preventDefault();
+          sfx.unlock();
+          heldKeys[k] = true;
+          btn.classList.add("active");
+          sendKeysIfChanged();
+        };
+        const release = (ev) => {
+          ev.preventDefault();
+          heldKeys[k] = false;
+          btn.classList.remove("active");
+          sendKeysIfChanged();
+        };
+        btn.addEventListener("pointerdown", press);
+        btn.addEventListener("pointerup", release);
+        btn.addEventListener("pointerleave", release);
+        btn.addEventListener("pointercancel", release);
+      });
+
+      el("minigame-close-btn").addEventListener("click", () => closeMiniGame(true));
+      el("btn-interact").addEventListener("click", handlePrimaryInteract);
+      el("btn-kill").addEventListener("click", () => sendWs({ type: "trigger", action: "kill" }));
+      el("btn-vent").addEventListener("click", () => sendWs({ type: "trigger", action: "vent" }));
+      el("btn-sabotage").addEventListener("click", () => sendWs({ type: "trigger", action: "sabotage" }));
+
+      el("sfx-toggle-btn").addEventListener("click", () => {
+        sfx.enabled = !sfx.enabled;
+        if (sfx.enabled) sfx.unlock();
+        el("sfx-toggle-btn").textContent = sfx.enabled ? "SFX: ON" : "SFX: OFF";
+      });
+
+      // -----------------------------------------------------------------------
+      // Lobby & Meeting Event Listeners
+      // -----------------------------------------------------------------------
+      el("player-name-input").value = sessionStorage.getItem(nameKey) || "";
+      el("player-name-input").addEventListener("input", (e) => sessionStorage.setItem(nameKey, e.target.value));
+
+      el("copy-lan-btn").addEventListener("click", async () => {
+        const url = el("lan-url").textContent;
+        try {
+          await navigator.clipboard.writeText(url);
+          showLobbyFeedback(`Copied ${url} to clipboard!`, true);
+        } catch (_) {
+          showLobbyFeedback(`Share URL: ${url}`, true);
+        }
+      });
+
+      el("slots-grid").addEventListener("click", async (e) => {
+        const btn = e.target.closest("button[data-action]");
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const pid = btn.dataset.pid;
+        showLobbyFeedback("");
+        try {
+          if (action === "claim") {
+            const lobby = await postJson("/api/lobby/claim", {
+              player_id: pid,
+              client_token: clientToken,
+              name: el("player-name-input").value.trim(),
+            });
+            myPlayerId = pid;
+            sessionStorage.setItem(slotKey, pid);
+            renderLobby(lobby);
+          } else if (action === "release") {
+            const lobby = await postJson("/api/lobby/release", {
+              player_id: pid,
+              client_token: clientToken,
+            });
+            myPlayerId = null;
+            sessionStorage.removeItem(slotKey);
+            disconnectWs();
+            renderLobby(lobby);
+          } else if (action === "toggle-bot") {
+            const lobby = await postJson("/api/lobby/config", { toggle_bot_slot: pid });
+            renderLobby(lobby);
+          }
+        } catch (err) {
+          showLobbyFeedback(err.message);
+        }
+      });
+
+      el("fill-bots-checkbox").addEventListener("change", async (e) => {
+        try {
+          const lobby = await postJson("/api/lobby/config", { fill_bots: e.target.checked });
+          renderLobby(lobby);
+        } catch (err) {
+          showLobbyFeedback(err.message);
+        }
+      });
+
+      el("start-game-btn").addEventListener("click", async () => {
+        showLobbyFeedback("");
+        try {
+          await postJson("/api/game/start", {});
+          await refreshLobbyOrState();
+        } catch (err) {
+          showLobbyFeedback(err.message);
+        }
+      });
+
+      async function handleExport(msgEl) {
+        try {
+          const res = await postJson("/api/export", {});
+          const msg = `Exported ${res.trajectory_rows} trajectory rows & ${res.meeting_rows} meeting rows from ${res.games_logged_count} game(s).`;
+          if (msgEl) msgEl.textContent = msg;
+          else showLobbyFeedback(msg, true);
+          await refreshLobbyOrState();
+        } catch (err) {
+          if (msgEl) msgEl.textContent = err.message;
+          else showLobbyFeedback(err.message);
+        }
+      }
+
+      el("export-csv-btn").addEventListener("click", () => handleExport(null));
+      el("gameover-export-btn").addEventListener("click", () => handleExport(el("gameover-export-msg")));
+
+      ["chat-type-select", "chat-target-select", "chat-room-select", "chat-window-select", "chat-reason-select"].forEach((id) => {
+        el(id).addEventListener("change", updateChatPreview);
+      });
+
+      el("send-chat-btn").addEventListener("click", async () => {
+        if (!myPlayerId) return;
+        el("meeting-error-toast").classList.add("hidden");
+        const chatType = el("chat-type-select").value;
+        const args = {};
+        if (chatType === "CLAIM_LOC") {
+          args.room = el("chat-room-select").value;
+          args.time_window = el("chat-window-select").value;
+        } else if (chatType === "VOUCH") {
+          args.target = el("chat-target-select").value;
+          args.room = el("chat-room-select").value;
+        } else if (chatType === "ACCUSE") {
+          args.target = el("chat-target-select").value;
+          args.reason = el("chat-reason-select").value;
+        }
+        try {
+          await postJson("/api/chat", {
+            player_id: myPlayerId,
+            type: chatType,
+            args,
+            rt_ms: computeRtMs(),
+          });
+        } catch (err) {
+          el("meeting-error-toast").textContent = err.message;
+          el("meeting-error-toast").classList.remove("hidden");
+        }
+      });
+
+      el("vote-buttons").addEventListener("click", async (e) => {
+        const btn = e.target.closest("button[data-vote-target]");
+        if (!btn || !myPlayerId) return;
+        el("meeting-error-toast").classList.add("hidden");
+        try {
+          await postJson("/api/vote", {
+            player_id: myPlayerId,
+            target: btn.dataset.voteTarget,
+            rt_ms: computeRtMs(),
+          });
+        } catch (err) {
+          el("meeting-error-toast").textContent = err.message;
+          el("meeting-error-toast").classList.remove("hidden");
+        }
+      });
+
+      el("play-again-btn").addEventListener("click", async () => {
+        el("gameover-export-msg").textContent = "";
+        await postJson("/api/game/start", {});
+      });
+
+      el("back-lobby-btn").addEventListener("click", async () => {
+        el("gameover-export-msg").textContent = "";
+        await postJson("/api/game/lobby", {});
+        await refreshLobbyOrState();
+      });
+
+      async function refreshLobbyOrState() {
+        try {
+          if (myPlayerId) {
+            const res = await fetch(`/api/state?player=${encodeURIComponent(myPlayerId)}&token=${encodeURIComponent(clientToken)}`);
+            const data = await res.json();
+            if (data.in_lobby) renderLobby(data.lobby);
+            else renderGame(data);
+          } else {
+            const res = await fetch(`/api/lobby?token=${encodeURIComponent(clientToken)}`);
+            const lobby = await res.json();
+            renderLobby(lobby);
+          }
+        } catch (_) {}
+      }
+
+      setInterval(() => {
+        if (!latestState || latestState.in_lobby || !ws || ws.readyState !== WebSocket.OPEN) {
+          refreshLobbyOrState();
+        }
+      }, 1000);
+
+      refreshLobbyOrState();
+      requestAnimationFrame(drawCanvasFrame);
+    })();
+  </script>
+</body>
+</html>
