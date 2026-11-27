@@ -9,6 +9,10 @@ A real-time 10 Hz 2D top-down social deduction environment ("Mini-Among Us") wit
 - `export_features.py` — Deterministic pipeline exporting `data/games_log.jsonl` into `data/keystroke_trajectories.csv` (with `lights_out`) and `data/meeting_features.csv`.
 - `test_engine.py` — Unit tests, LOS/partial-observability isolation checks, and 20-game headless balance benchmark.
 
+## AI Architecture & Team Roadmap
+
+See **[ARCHITECTURE_PLAN.md](ARCHITECTURE_PLAN.md)** for the full structured plan, parallel vs. sequential team tracks, literal from-scratch algorithms (**RRT\*** collision-free motion planning, **Hierarchical A3C** tactical RL, and **Naive Bayes / Bayesian Network** human social deduction), frozen module interfaces, and per-module verification checklists.
+
 ## Controls (Map Phase)
 
 - **Move:** `W` `A` `S` `D` or `Arrow Keys` (or on-screen touch D-pad)
